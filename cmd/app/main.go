@@ -26,17 +26,20 @@ func main() {
 	}
 	defer pool.Close()
 	logger.Info("Connected to the database successfully")
+
+	// Initialize Echo
 	e := echo.New()
+	authGroup := e.Group("/auth")
 	authRepo := authRepo.NewAuthRepo(pool)
 	authUsecase := authUs.NewAuthUsecase(authRepo)
-	authHadler := gRPCHandler.NewAuthHandler(*logger, authUsecase)
-	
-	
+	authHadler := gRPCHandler.NewAuthHandler(*logger, authUsecase, authGroup)
+
 	_ = e.Start(":8080")
 	logger.Info("gRPC server started on port 8080")
-	
+
 }
 
+// setupLogger configures the logger based on the environment (production, development, local).
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 	switch env {

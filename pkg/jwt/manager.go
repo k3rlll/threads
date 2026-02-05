@@ -1,29 +1,29 @@
 package jwt
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type JWTManager struct {
-	secretKey string
-	tokenTTL  time.Duration
+	secretKey      string
+	accessTokenTTL time.Duration
 }
 
 func NewJWTManager(secretKey string, tokenTTL time.Duration) *JWTManager {
 	return &JWTManager{
-		secretKey: secretKey,
-		tokenTTL:  tokenTTL,
+		secretKey:      secretKey,
+		accessTokenTTL: tokenTTL,
 	}
 }
 
-func (manager *JWTManager) NewAcccessToken(userID string) (string, error) {
+// NewAccessToken generates a new JWT access token for the given user ID.
+func (manager *JWTManager) NewAccessToken(userID uuid.UUID) (string, error) {
 	jwtClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(manager.tokenTTL).Unix(),
+		"exp":     time.Now().Add(manager.accessTokenTTL).Unix(),
 		"iat":     time.Now().Unix(),
 	})
 	tokenString, err := jwtClaims.SignedString([]byte(manager.secretKey))
@@ -33,14 +33,7 @@ func (manager *JWTManager) NewAcccessToken(userID string) (string, error) {
 	return tokenString, nil
 }
 
-func (manager *JWTManager) NewRefreshToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
+// VerifyAccessToken verifies the access token and returns the user ID if the token is valid.
 func (manager *JWTManager) VerifyAccessToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

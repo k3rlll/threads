@@ -17,13 +17,14 @@ var publicMethods = map[string]struct{}{
 	"/auth.v1.AuthService/Login":    {},
 }
 
+// AuthInterceptor is a gRPC middleware that intercepts incoming requests to perform authentication.
 func AuthInterceptor(manager manager.JWTManager) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		if _, ok := publicMethods[info.FullMethod]; ok {
 			// Public method, proceed without authentication
 			return handler(ctx, req)

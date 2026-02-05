@@ -180,7 +180,6 @@ func (x *LoginRequest) GetPassword() string {
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -222,16 +221,10 @@ func (x *LoginResponse) GetToken() string {
 	return ""
 }
 
-func (x *LoginResponse) GetRefreshToken() string {
-	if x != nil {
-		return x.RefreshToken
-	}
-	return ""
-}
-
 type LogoutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -266,9 +259,16 @@ func (*LogoutRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *LogoutRequest) GetToken() string {
+func (x *LogoutRequest) GetUserId() string {
 	if x != nil {
-		return x.Token
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *LogoutRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
 	}
 	return ""
 }
@@ -418,12 +418,13 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05login\x18\x01 \x01(\tR\x05login\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"J\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"%\n" +
 	"\rLoginResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
-	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"%\n" +
-	"\rLogoutRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"*\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"G\n" +
+	"\rLogoutRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\"*\n" +
 	"\x0eLogoutResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"+\n" +
 	"\x10LogoutAllRequest\x12\x17\n" +

@@ -26,11 +26,11 @@ message LoginRequest {
 
 message LoginResponse {
   string token = 1;
-  string refresh_token = 2;
 }
 
 message LogoutRequest {
-  string token = 1;
+  string user_id = 1;
+  string session_id = 2;
 }
 message LogoutResponse {
   bool success = 1;
