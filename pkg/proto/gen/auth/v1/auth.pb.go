@@ -430,11 +430,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x10LogoutAllRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"-\n" +
 	"\x11LogoutAllResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xc1\x01\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\x85\x02\n" +
 	"\vAuthService\x12?\n" +
 	"\bRegister\x12\x18.auth.v1.RegisterRequest\x1a\x19.auth.v1.RegisterResponse\x126\n" +
 	"\x05Login\x12\x15.auth.v1.LoginRequest\x1a\x16.auth.v1.LoginResponse\x129\n" +
-	"\x06Logout\x12\x16.auth.v1.LogoutRequest\x1a\x17.auth.v1.LogoutResponseB\x19Z\x17threads/pkg/gen/auth/v1b\x06proto3"
+	"\x06Logout\x12\x16.auth.v1.LogoutRequest\x1a\x17.auth.v1.LogoutResponse\x12B\n" +
+	"\tLogoutAll\x12\x19.auth.v1.LogoutAllRequest\x1a\x1a.auth.v1.LogoutAllResponseB\x19Z\x17threads/pkg/gen/auth/v1b\x06proto3"
 
 var (
 	file_auth_v1_auth_proto_rawDescOnce sync.Once
@@ -463,11 +464,13 @@ var file_auth_v1_auth_proto_depIdxs = []int32{
 	0, // 0: auth.v1.AuthService.Register:input_type -> auth.v1.RegisterRequest
 	2, // 1: auth.v1.AuthService.Login:input_type -> auth.v1.LoginRequest
 	4, // 2: auth.v1.AuthService.Logout:input_type -> auth.v1.LogoutRequest
-	1, // 3: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
-	3, // 4: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
-	5, // 5: auth.v1.AuthService.Logout:output_type -> auth.v1.LogoutResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	6, // 3: auth.v1.AuthService.LogoutAll:input_type -> auth.v1.LogoutAllRequest
+	1, // 4: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
+	3, // 5: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
+	5, // 6: auth.v1.AuthService.Logout:output_type -> auth.v1.LogoutResponse
+	7, // 7: auth.v1.AuthService.LogoutAll:output_type -> auth.v1.LogoutAllResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

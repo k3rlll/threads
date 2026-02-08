@@ -10,6 +10,8 @@ import (
 
 func MapRoutes(e *echo.Echo, authHandler *handler.AuthHandler, authUsecase AuthUsecase, logger *slog.Logger) {
 	// Middlewares
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		Skipper:   middleware.DefaultSkipper,
 		LogURI:    true,
@@ -17,6 +19,11 @@ func MapRoutes(e *echo.Echo, authHandler *handler.AuthHandler, authUsecase AuthU
 		LogStatus: true,
 		LogError:  true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+
+			if v.Error != nil && v.Error.Error() == "gRPC Client Error" {
+				return nil // ingore gRPC client errors in HTTP logs, as they are handled separately in gRPC middleware
+			}
+
 			if v.Error != nil {
 				logger.Error("HTTP request error",
 					"method", v.Method,
@@ -38,8 +45,6 @@ func MapRoutes(e *echo.Echo, authHandler *handler.AuthHandler, authUsecase AuthU
 		},
 	},
 	))
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
 
 	// Auth routes
 	e.POST("/logout", authHandler.Logout, AuthMiddleware(authUsecase))

@@ -104,8 +104,8 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context, login, password, userAgent
 		ID:           uuid.New(),
 		UserID:       userID,
 		RefreshToken: refreshToken,
-		CreatedAt:    time.Now().Unix(),
-		ExpiresAt:    time.Now().Add(15 * 24 * time.Hour).Unix(),
+		CreatedAt:    time.Now(),
+		ExpiresAt:    time.Now().Add(15 * 24 * time.Hour),
 		UserAgent:    userAgent,
 		ClientIP:     ip,
 	}

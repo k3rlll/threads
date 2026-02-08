@@ -26,94 +26,113 @@ import (
 	"github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
-	config := config.LoadConfig()
-	logger := setupLogger(config.Env)
-	logger.Info("Application started", "env", config.Env)
+	cfg := config.LoadConfig()
+	logger := setupLogger(cfg.Env)
+	logger.Info("Application started", "env", cfg.Env)
 
-	// Initialize Postgres connection
-	DSN := config.PostgresConfig.DSN()
-	pool, err := psql.NewPostgresConnection(DSN)
+	//database connection setup
+	dsn := cfg.PostgresConfig.DSN()
+	pool, err := psql.NewPostgresConnection(dsn)
 	if err != nil {
 		logger.Error("Failed to connect to the database", "error", err)
-		return
+		os.Exit(1)
 	}
 	defer pool.Close()
 	logger.Info("Connected to the database successfully")
 
-	jwtManager := jwt.NewJWTManager(config.JWTConfig.Secret, config.JWTConfig.ExpirationMinutes)
+	//  Init Core Logic
+	jwtManager := jwt.NewJWTManager(cfg.JWTConfig.Secret, cfg.JWTConfig.ExpirationMinutes)
+	authRepository := authRepo.NewAuthRepo(pool)
+	authUsecase := authUs.NewAuthUsecase(authRepository, jwtManager)
 
-	// Initialize Echo
+	// Init Handlers
+	httpHandler := httpAuthHandler.NewAuthHandler(authUsecase)
+	grpcHandler := grpcAuthHandler.NewAuthHandler(logger, authUsecase)
+
+	//  HTTP Server Setup (Echo)
 	e := echo.New()
 	e.HTTPErrorHandler = errHandler.HandleError
+	routes.MapRoutes(e, httpHandler, authUsecase, logger)
 
-	// Initialize repositories
-	authRepo := authRepo.NewAuthRepo(pool)
-
-	// Initialize use cases
-	authUsecase := authUs.NewAuthUsecase(authRepo, jwtManager)
-
-	// Initialize handlers and map routes
-	httpAuthHandler := httpAuthHandler.NewAuthHandler(authUsecase)
-	routes.MapRoutes(e, httpAuthHandler, authUsecase, logger)
-	grpcAuthHandler := grpcAuthHandler.NewAuthHandler(logger, authUsecase)
-
-	serverParams := &http.Server{
-		Addr:         net.JoinHostPort(config.Server.Host, strconv.Itoa(config.Server.Port)),
+	// http.Server configuration with timeouts for better resource management and security
+	httpAddr := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))
+	httpServer := &http.Server{
+		Addr:         httpAddr,
 		Handler:      e,
-		ReadTimeout:  config.Server.Timeout,
-		WriteTimeout: config.Server.Timeout,
-		IdleTimeout:  config.Server.IdleTimeout,
+		ReadTimeout:  cfg.Server.Timeout,
+		WriteTimeout: cfg.Server.Timeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
+
+	// gRPC Server Setup
+	grpcAddr := net.JoinHostPort(cfg.GrpcServer.Host, strconv.Itoa(cfg.GrpcServer.Port))
+	//
+	//
+	//setup gRPC server with interceptors
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.AuthInterceptor(jwtManager)),
-	)
+		grpc.ChainUnaryInterceptor(
+			interceptor.RecoveryInterceptor(logger),
+			interceptor.LoggingInterceptor(logger),
+			interceptor.AuthInterceptor(jwtManager),
+		))
 
-	pb.RegisterAuthServiceServer(grpcServer, grpcAuthHandler)
+	pb.RegisterAuthServiceServer(grpcServer, grpcHandler)
+	// reflection for gRPC debugging tools (Postman/BloomRPC) - only in non-production environments
+	if cfg.Env != "production" {
+		reflection.Register(grpcServer)
+	}
 
-	// Start servers in separate goroutines and handle graceful shutdown
-	// The application will run both the HTTP and gRPC servers concurrently.
-	// It listens for interrupt signals (like Ctrl+C) to initiate a graceful shutdown process,
-	// allowing ongoing requests to complete before the servers are stopped.
+	//  Graceful Shutdown Setup
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
 	g, gCtx := errgroup.WithContext(ctx)
+
+	//setup gRPC server in separate goroutine
 	g.Go(func() error {
-		logger.Info("gRPC server is starting on port", slog.String("addr", net.JoinHostPort(config.GrpcServer.Host, strconv.Itoa(config.GrpcServer.Port))))
-		lis, err := net.Listen("tcp", net.JoinHostPort(config.GrpcServer.Host, strconv.Itoa(config.GrpcServer.Port)))
+		lis, err := net.Listen("tcp", grpcAddr)
 		if err != nil {
-			return err
+			return errors.New("failed to listen gRPC: " + err.Error())
 		}
-		logger.Info("gRPC server is starting", slog.String("addr", lis.Addr().String()))
+		logger.Info("gRPC server started", slog.String("addr", grpcAddr))
+
 		if err := grpcServer.Serve(lis); err != nil {
-			return err
+			return errors.New("gRPC server failed: " + err.Error())
 		}
 		return nil
 	})
+
+	//setup HTTP server in separate goroutine
 	g.Go(func() error {
-		logger.Info("Starting HTTP server on port", slog.String("addr", net.JoinHostPort(config.Server.Host, strconv.Itoa(config.Server.Port))))
-		return e.Start(net.JoinHostPort(config.Server.Host, strconv.Itoa(config.Server.Port)))
+		logger.Info("HTTP server started", slog.String("addr", httpAddr))
+		if err := e.StartServer(httpServer); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
+			return errors.New("HTTP server failed: " + err.Error())
+		}
+		return nil
 	})
 
-	// Graceful shutdown
-	// Wait for interrupt signal to gracefully shutdown the servers with a timeout of 5 seconds.
-	// When an interrupt signal is received, the application will attempt to gracefully shut down both the HTTP and gRPC servers.
+	// --- Graceful Shutdown ---
 	g.Go(func() error {
 		<-gCtx.Done()
-		logger.Info("shutting down servers...")
+		logger.Info("Shutting down servers...")
 
-		shutDownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelShutdown()
 
 		var wg sync.WaitGroup
 		wg.Add(2)
 
 		go func() {
 			defer wg.Done()
-			if err := serverParams.Shutdown(shutDownCtx); err != nil {
-				logger.Error("HTTP server shutdown failed", slog.String("error", err.Error()))
+			if err := httpServer.Shutdown(shutdownCtx); err != nil {
+				logger.Error("HTTP shutdown error", slog.String("err", err.Error()))
 			}
 		}()
 
@@ -122,39 +141,37 @@ func main() {
 			grpcServer.GracefulStop()
 		}()
 
-		done := make(chan struct{})
+		doneCh := make(chan struct{})
 		go func() {
 			wg.Wait()
-			close(done)
+			close(doneCh)
 		}()
+
 		select {
-		case <-done:
-			logger.Info("All servers stopped gracefully")
-		case <-shutDownCtx.Done():
-			logger.Warn("Shutdown timeout exceeded, forcing stop")
+		case <-doneCh:
+			logger.Info("Servers stopped gracefully")
+		case <-shutdownCtx.Done():
+			logger.Warn("Shutdown timeout exceeded, forcing gRPC stop")
 			grpcServer.Stop()
 		}
 
 		return nil
 	})
 
-	// Wait for all goroutines to finish and check for errors
+	//wait for all goroutines to finish
 	if err := g.Wait(); err != nil {
-		if !errors.Is(err, context.Canceled) {
-			logger.Error("Application stopped with error", slog.Any("err", err))
-			os.Exit(1)
-		}
+		logger.Error("Application terminated with error", slog.Any("err", err))
+		os.Exit(1)
 	}
 }
 
-// setupLogger configures the logger based on the environment (production, development, local).
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 	switch env {
 	case "production":
 		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case "development", "local":
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	default:
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}

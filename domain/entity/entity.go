@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // User represents a user in the system with essential attributes.
 type User struct {
@@ -8,7 +12,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"password"`
-	CreatedAt    int64     `json:"created_at"`
+	CreatedAt    time.Time `json:"created_at"`
 	IsBlocked    bool      `json:"is_blocked"`
 }
 
@@ -16,8 +20,8 @@ type UserSettings struct {
 	UserID         uuid.UUID `json:"user_id"`
 	PrivateAccount bool      `json:"private_account"`
 	// Privacy indicates the user's privacy level (e.g., "public", "friends_only", "private").
-	Privacy   string `json:"privacy"`
-	CreatedAt int64  `json:"created_at"`
+	Privacy   string    `json:"privacy"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Blacklist struct {
@@ -40,8 +44,8 @@ type Profile struct {
 	// Reposts is a list of post IDs that the user has reposted.
 	Reposts []uuid.UUID `json:"reposts"`
 	// Media is a list of media URLs associated with the user's profile.
-	Media     []string `json:"media"`
-	CreatedAt int64    `json:"created_at"`
+	Media     []string  `json:"media"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Post represents a social media post with various attributes.
@@ -61,12 +65,12 @@ type Post struct {
 	// Count of comments on the post
 	Comments int64 `json:"comments"`
 	// Timestamp when the post was created
-	CreatedAt int64 `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 	// Timestamp when the post was last updated
-	UpdatedAt int64 `json:"updated_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	// Indicates if the post contains video content
-	Duration int64 `json:"duration"`
-	IsVideo  bool  `json:"is_video"`
+	Duration time.Duration `json:"duration"`
+	IsVideo  bool          `json:"is_video"`
 }
 
 type Liked struct {
@@ -77,7 +81,7 @@ type Liked struct {
 type Reposted struct {
 	PostID    uuid.UUID `json:"post_id"`
 	UserID    uuid.UUID `json:"user_id"`
-	CreatedAt int64     `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Comment struct {
@@ -90,7 +94,7 @@ type Comment struct {
 	ReplyTo   uuid.UUID `json:"reply_to"`
 	Content   string    `json:"content"`
 	Media     string    `json:"media"`
-	CreatedAt int64     `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Message struct {
@@ -99,7 +103,7 @@ type Message struct {
 	ChatID    uuid.UUID `json:"chat_id"`
 	Content   string    `json:"content"`
 	Media     string    `json:"media"`
-	CreatedAt int64     `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Chat struct {
@@ -109,20 +113,20 @@ type Chat struct {
 	Media     string      `json:"media"`
 	UserIDs   []uuid.UUID `json:"user_ids"`
 	Usernames []string    `json:"usernames"`
-	CreatedAt int64       `json:"created_at"`
+	CreatedAt time.Time   `json:"created_at"`
 }
 
 type ChatMember struct {
 	ChatID   uuid.UUID `json:"chat_id"`
 	UserID   uuid.UUID `json:"user_id"`
-	JoinedAt int64     `json:"joined_at"`
+	JoinedAt time.Time `json:"joined_at"`
 }
 
 type FollowRequest struct {
 	ID        uuid.UUID `json:"id"`
 	FromUser  uuid.UUID `json:"from_user"`
 	ToUser    uuid.UUID `json:"to_user"`
-	CreatedAt int64     `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Session struct {
@@ -131,7 +135,7 @@ type Session struct {
 	RefreshToken uuid.UUID `json:"refresh_token"`
 	IsBlocked    bool      `json:"is_blocked"`
 	ClientIP     string    `json:"client_ip"`
-	CreatedAt    int64     `json:"created_at"`
-	ExpiresAt    int64     `json:"expires_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	ExpiresAt    time.Time `json:"expires_at"`
 	UserAgent    string    `json:"user_agent"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	authv1 "main/pkg/proto/gen/auth/v1"
+	"net"
 	"strings"
 
 	"github.com/google/uuid"
@@ -43,11 +44,11 @@ func NewAuthHandler(logger *slog.Logger, authUsecase AuthUsecase) *RPCAuthHandle
 }
 
 // RegisterUser registers a new user and returns the user ID.
-func (h *RPCAuthHandler) RegisterUser(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+func (h *RPCAuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
 	userID, err := h.AuthUsecase.RegisterUser(ctx, req.Username, req.Email, req.Password)
 	if err != nil {
 		h.logger.Error("Failed to register user", "error", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to register user")
 	}
 	return &authv1.RegisterResponse{
 		UserId: userID.String()}, nil
@@ -55,7 +56,7 @@ func (h *RPCAuthHandler) RegisterUser(ctx context.Context, req *authv1.RegisterR
 }
 
 // LoginUser authenticates the user and returns an access token if successful.
-func (h *RPCAuthHandler) LoginUser(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
+func (h *RPCAuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
 	if req.GetLogin() == "" || req.GetPassword() == "" {
 		h.logger.Error("Login or password is empty")
 		return nil, status.Error(codes.InvalidArgument, "login or password is empty")
@@ -65,7 +66,7 @@ func (h *RPCAuthHandler) LoginUser(ctx context.Context, req *authv1.LoginRequest
 	token, err := h.AuthUsecase.LoginUser(ctx, req.GetLogin(), req.GetPassword(), userAgent, clientIP)
 	if err != nil {
 		h.logger.Error("Failed to login user", "error", err)
-		return nil, err
+		return nil, status.Error(codes.Unauthenticated, "invalid credentials")
 	}
 	return &authv1.LoginResponse{
 		Token: token,
@@ -74,11 +75,12 @@ func (h *RPCAuthHandler) LoginUser(ctx context.Context, req *authv1.LoginRequest
 }
 
 // LogoutSession logs out the user from a specific session by deleting that session from the database.
-func (h *RPCAuthHandler) LogoutSession(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
+func (h *RPCAuthHandler) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
 	err := h.AuthUsecase.LogoutSession(ctx, req.GetUserId(), req.GetSessionId())
 	if err != nil {
 		h.logger.Error("Failed to logout session", "error", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to logout session")
+
 	}
 	return &authv1.LogoutResponse{
 		Success: true,
@@ -86,11 +88,11 @@ func (h *RPCAuthHandler) LogoutSession(ctx context.Context, req *authv1.LogoutRe
 }
 
 // LogoutAllSessions logs out the user from all sessions by deleting all sessions associated with the user from the database.
-func (h *RPCAuthHandler) LogoutAllSessions(ctx context.Context, req *authv1.LogoutAllRequest) (*authv1.LogoutAllResponse, error) {
+func (h *RPCAuthHandler) LogoutAll(ctx context.Context, req *authv1.LogoutAllRequest) (*authv1.LogoutAllResponse, error) {
 	err := h.AuthUsecase.LogoutAllSessions(ctx, req.GetUserId())
 	if err != nil {
 		h.logger.Error("Failed to logout all sessions", "error", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to logout all sessions")
 	}
 	return &authv1.LogoutAllResponse{
 		Success: true,
@@ -117,7 +119,14 @@ func getClientIP(ctx context.Context) string {
 
 	// 2. Fallback to peer info from context
 	if p, ok := peer.FromContext(ctx); ok {
-		return p.Addr.String()
+		addr := p.Addr.String()
+
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+
+			return addr
+		}
+		return host
 	}
 
 	return "unknown"
