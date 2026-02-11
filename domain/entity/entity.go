@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -130,12 +131,12 @@ type FollowRequest struct {
 }
 
 type Session struct {
-	ID           uuid.UUID `json:"id"`
-	UserID       uuid.UUID `json:"user_id"`
-	RefreshToken uuid.UUID `json:"refresh_token"`
-	IsBlocked    bool      `json:"is_blocked"`
-	ClientIP     string    `json:"client_ip"`
-	CreatedAt    time.Time `json:"created_at"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	UserAgent    string    `json:"user_agent"`
+	ID           uuid.UUID  `json:"id"`
+	UserID       uuid.UUID  `json:"user_id"`
+	RefreshToken uuid.UUID  `json:"refresh_token"`
+	IsBlocked    bool       `json:"is_blocked"`
+	ClientIP     netip.Addr `json:"client_ip"`
+	CreatedAt    time.Time  `json:"created_at"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	UserAgent    string     `json:"user_agent"`
 }

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"time"
 	"unicode"
 
@@ -55,25 +56,21 @@ func NewAuthUsecase(authRepo AuthRepo, JWTManager JWTManager) *AuthUsecase {
 		authRepo:   authRepo,
 		JWTManager: JWTManager}
 }
-//TODO: Do not send userID, instead, use the refresh token to identify the session and user. This will prevent potential security issues and simplify the API.
+
+// TODO: Do not send userID, instead, use the refresh token to identify the session and user. This will prevent potential security issues and simplify the API.
 // RefreshSessionToken validates the provided refresh token and returns the associated user ID if the token is valid.
-func (uc *AuthUsecase) RefreshSessionToken(ctx context.Context, refreshToken string, userID string) (string, string, error) {
+func (uc *AuthUsecase) RefreshSessionToken(ctx context.Context, refreshToken string) (string, string, error) {
 	sid, err := uuid.Parse(refreshToken)
 	if err != nil {
 		return "", "", errors.New("invalid session ID")
-	}
-	uid, err := uuid.Parse(userID)
-	if err != nil {
-		return "", "", errors.New("invalid user ID")
 	}
 
 	session, err := uc.authRepo.GetSessionByRefreshToken(ctx, sid)
 	if err != nil {
 		return "", "", err
 	}
-	if session.UserID != uid {
-		return "", "", errors.New("session does not belong to the user")
-	}
+	uid := session.UserID
+
 	if session.ExpiresAt.Before(session.CreatedAt) {
 		uc.authRepo.DeleteSession(ctx, uid, session.ID)
 		return "", "", errors.New("session has expired")
@@ -135,7 +132,7 @@ func (uc *AuthUsecase) LoginUser(ctx context.Context,
 	login,
 	password,
 	userAgent string,
-	ip string) (uuid.UUID, string, string, error) {
+	ip netip.Addr) (uuid.UUID, string, string, error) {
 	userID, passwordHash, err := uc.authRepo.GetUserByLogin(ctx, login)
 	if err != nil {
 		return uuid.Nil, "", "", err

@@ -35,7 +35,7 @@ type AuthUsecase interface {
 	LogoutAllSessions(ctx context.Context, userID string) error
 
 	//RefreshSessionToken refreshes the session token for a user and returns the new access token and refresh token.
-	RefreshSessionToken(ctx context.Context, refreshToken string, userID string) (string, string, error)
+	RefreshSessionToken(ctx context.Context, refreshToken string) (string, string, error)
 }
 
 func NewAuthHandler(logger *slog.Logger, authUsecase AuthUsecase) *RPCAuthHandler {
@@ -107,7 +107,7 @@ func (h *RPCAuthHandler) LogoutAll(ctx context.Context, req *authv1.LogoutAllReq
 
 // RefreshSession refreshes the session token for a user and returns the new access token and refresh token.
 func (h *RPCAuthHandler) RefreshSession(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
-	newAccessToken, newRefreshToken, err := h.AuthUsecase.RefreshSessionToken(ctx, req.GetRefreshToken(), req.GetUserId())
+	newAccessToken, newRefreshToken, err := h.AuthUsecase.RefreshSessionToken(ctx, req.GetRefreshToken())
 	if err != nil {
 		h.logger.Error("Failed to refresh session token", "error", err)
 		return nil, status.Error(codes.Internal, "failed to refresh session token")

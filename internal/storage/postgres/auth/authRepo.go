@@ -77,14 +77,15 @@ func (r *AuthRepo) RefreshSession(ctx context.Context, session entity.Session) e
 
 func (r *AuthRepo) GetSessionByRefreshToken(ctx context.Context, refreshToken uuid.UUID) (entity.Session, error) {
 	var session entity.Session
-	sql := `SELECT id, user_id, refresh_token, created_at, expires_at,   
+	sql := `SELECT id, user_id, created_at, expires_at, user_agent, ip_address
 			FROM sessions WHERE refresh_token = $1`
 	err := r.pool.QueryRow(ctx, sql, refreshToken).Scan(
 		&session.ID,
 		&session.UserID,
-		&session.RefreshToken,
 		&session.CreatedAt,
 		&session.ExpiresAt,
+		&session.UserAgent,
+		&session.ClientIP,
 	)
 	return session, err
 

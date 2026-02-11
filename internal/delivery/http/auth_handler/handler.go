@@ -29,7 +29,7 @@ type AuthUsecase interface {
 	LogoutAllSessions(ctx context.Context, userID string) error
 
 	//RefreshSessionToken refreshes the access token using a valid refresh token and returns the new access token and refresh token.
-	RefreshSessionToken(ctx context.Context, refreshToken string, userID string) (newAccessToken string, newRefreshToken string, err error)
+	RefreshSessionToken(ctx context.Context, refreshToken string) (newAccessToken string, newRefreshToken string, err error)
 }
 
 func NewAuthHandler(authUsecase AuthUsecase) *AuthHandler {
@@ -56,11 +56,11 @@ type LogoutRequest struct {
 func (h *AuthHandler) Register(c echo.Context) error {
 	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request: %v", err))
 	}
 	userID, err := h.AuthUsecase.RegisterUser(c.Request().Context(), req.Username, req.Email, req.Password)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to register user", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to register user: %v", err))
 	}
 	return c.JSON(201, map[string]string{"user_id": userID.String()})
 }
@@ -68,7 +68,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 func (h *AuthHandler) Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request: %v", err))
 	}
 	userID, accessToken, refreshToken, err := h.AuthUsecase.LoginUser(
 		c.Request().Context(),
@@ -77,7 +77,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		c.Request().UserAgent(),
 		c.RealIP())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials", err.Error())
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("invalid credentials: %v", err))
 	}
 
 	cookie := &http.Cookie{
@@ -101,11 +101,11 @@ func (h *AuthHandler) Login(c echo.Context) error {
 func (h *AuthHandler) Logout(c echo.Context) error {
 	var req LogoutRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request: %v", err))
 	}
 	err := h.AuthUsecase.LogoutSession(c.Request().Context(), req.UserID, req.SessionID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to logout session", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to logout session: %v", err))
 	}
 	return c.NoContent(204)
 }
@@ -113,11 +113,11 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 func (h *AuthHandler) LogoutAll(c echo.Context) error {
 	var req LogoutRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request: %v", err))
 	}
 	err := h.AuthUsecase.LogoutAllSessions(c.Request().Context(), req.UserID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to logout all sessions", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to logout all sessions: %v", err))
 	}
 	return c.NoContent(204)
 }
@@ -125,19 +125,13 @@ func (h *AuthHandler) LogoutAll(c echo.Context) error {
 func (h *AuthHandler) RefreshSession(c echo.Context) error {
 	refreshTokenCookie, err := c.Cookie("refresh_token")
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "refresh_token cookie is required", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("missing refresh token cookie: %v", err))
 	}
 	refreshToken := refreshTokenCookie.Value
 
-	// In a real application, you would also need to extract the user ID from the access token or session
-	// For this example, we'll assume the user ID is passed as a query parameter (not recommended for production)
-	userID := c.Get("user_id")
-	if userID == nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "user_id is required", fmt.Errorf("user_id not found in context"))
-	}
-	newAccessToken, newRefreshToken, err := h.AuthUsecase.RefreshSessionToken(c.Request().Context(), refreshToken, userID.(string))
+	newAccessToken, newRefreshToken, err := h.AuthUsecase.RefreshSessionToken(c.Request().Context(), refreshToken)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to refresh session", err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to refresh session: %v", err))
 	}
 
 	newCookie := &http.Cookie{
